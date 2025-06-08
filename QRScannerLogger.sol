@@ -1,44 +1,52 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-contract QRScanStorage {
-
+contract ProductScan {
+    
     struct QRScan {
         string qrData;
-        string result; // "Malicious" or "Benign"
+        string result;
         uint256 timestamp;
     }
 
-    // Mapping user address to their scan history (array of QRScan)
-    mapping(address => QRScan[]) private scanHistory;
+    mapping(address => QRScan[]) private userScans;
 
-    // Event emitted when a new scan is recorded
     event ScanRecorded(address indexed user, string qrData, string result, uint256 timestamp);
 
-    // Record a new scan for msg.sender
-    function recordScan(string calldata qrData, string calldata result) external {
-        QRScan memory newScan = QRScan({
+    function recordScan(string memory qrData, string memory result) external {
+        QRScan memory scan = QRScan({
             qrData: qrData,
             result: result,
             timestamp: block.timestamp
         });
-        scanHistory[msg.sender].push(newScan);
 
+        userScans[msg.sender].push(scan);
         emit ScanRecorded(msg.sender, qrData, result, block.timestamp);
     }
 
-    // Get the number of scans recorded by the caller
-    function getScanCount() external view returns (uint256) {
-        return scanHistory[msg.sender].length;
+    function getMyScanCount() external view returns (uint256) {
+        return userScans[msg.sender].length;
     }
 
-    // Get a scan by index for the caller
-    function getScan(uint256 index) external view returns (string memory, string memory, uint256) {
-        require(index < scanHistory[msg.sender].length, "Index out of bounds");
-        QRScan storage scan = scanHistory[msg.sender][index];
+    function getMyScanByIndex(uint index) external view returns (string memory, string memory, uint256) {
+        require(index < userScans[msg.sender].length, "Index out of bounds");
+        QRScan storage scan = userScans[msg.sender][index];
         return (scan.qrData, scan.result, scan.timestamp);
     }
 
-    // Get all scans for the caller (if you want to implement, be cautious about gas costs)
-    // For demonstration, we'll omit this, as returning dynamic arrays is complex on-chain.
+    function getMyScansPaginated(uint offset, uint limit) external view returns (QRScan[] memory) {
+        QRScan[] storage scans = userScans[msg.sender];
+        require(offset < scans.length, "Offset out of bounds");
+
+        uint end = offset + limit;
+        if (end > scans.length) {
+            end = scans.length;
+        }
+
+        QRScan[] memory paginated = new QRScan[](end - offset);
+        for (uint i = offset; i < end; i++) {
+            paginated[i - offset] = scans[i];
+        }
+        return paginated;
+    }
 }
